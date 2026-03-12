@@ -1,6 +1,6 @@
-import { Canvas } from '@react-three/fiber'
+import { Canvas, useThree } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import * as THREE from 'three'
 import { c60Data } from './data/c60'
 import { c70Data } from './data/c70'
@@ -10,6 +10,31 @@ import { c78Data } from './data/c78'
 import { c80Data } from './data/c80'
 import { c84Data } from './data/c84'
 import { MoleculeData, FULLERENE_FORMULAS } from './data/types'
+
+// Component to verify camera type and log debug info
+function CameraDebug() {
+  const { camera } = useThree()
+  
+  useEffect(() => {
+    console.log('Camera type:', camera.type)
+    console.log('Is OrthographicCamera:', camera instanceof THREE.OrthographicCamera)
+    console.log('Is PerspectiveCamera:', camera instanceof THREE.PerspectiveCamera)
+    
+    if (camera instanceof THREE.OrthographicCamera) {
+      console.log('Orthographic camera properties:', {
+        left: camera.left,
+        right: camera.right,
+        top: camera.top,
+        bottom: camera.bottom,
+        near: camera.near,
+        far: camera.far,
+        position: camera.position.toArray()
+      })
+    }
+  }, [camera])
+  
+  return null
+}
 
 // Molecule type definition
 export type MoleculeType = 'C20' | 'C60' | 'C70' | 'C76' | 'C78' | 'C80' | 'C84'
@@ -343,13 +368,18 @@ function App() {
         ) : (
           <Canvas 
             gl={{ antialias: true }}
+            orthographic
+            camera={{
+              position: [0, 0, 12],
+              left: -20,
+              right: 20,
+              top: 20,
+              bottom: -20,
+              near: 0.1,
+              far: 1000
+            }}
           >
-            
-            {/* Add orthographic camera */}
-            <orthographicCamera 
-              position={[0, 0, 12]}
-              args={[-20, 20, 20, -20, 0.1, 1000]}
-            />
+            <CameraDebug />
             
             {/* 添加背景色 */}
             <color attach="background" args={['#F8F9FA']} />
@@ -359,18 +389,10 @@ function App() {
             <pointLight position={[10, 10, 10]} intensity={1} color="#ffffff" />
             <pointLight position={[-10, -10, -10]} intensity={0.3} color="#b8c5d6" />
             
-            {/* Debug: Multiple spheres at different depths to verify orthographic rendering */}
-            <mesh position={[0, 0, -5]}>
-              <sphereGeometry args={[1.5, 32, 32]} />
-              <meshBasicMaterial color="red" />
-            </mesh>
+            {/* Debug: Red sphere to verify orthographic rendering */}
             <mesh position={[0, 0, 0]}>
-              <sphereGeometry args={[1.5, 32, 32]} />
-              <meshBasicMaterial color="green" />
-            </mesh>
-            <mesh position={[0, 0, 5]}>
-              <sphereGeometry args={[1.5, 32, 32]} />
-              <meshBasicMaterial color="blue" />
+              <sphereGeometry args={[2, 32, 32]} />
+              <meshBasicMaterial color="red" />
             </mesh>
             
             <MoleculeScene 
