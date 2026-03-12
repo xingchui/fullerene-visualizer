@@ -1,6 +1,6 @@
-import { Canvas } from '@react-three/fiber'
+import { Canvas, useThree } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import * as THREE from 'three'
 import { c60Data } from './data/c60'
 import { c70Data } from './data/c70'
@@ -162,6 +162,7 @@ function MoleculeScene({
   controlsRef,
   autoRotate,
   rotateSpeed,
+  projectionMode,
 }: { 
   molecule: 'C20' | 'C60' | 'C70' | 'C76' | 'C78' | 'C80' | 'C84'
   highlightedAtom: number | null
@@ -173,6 +174,7 @@ function MoleculeScene({
   controlsRef?: React.RefObject<any>
   autoRotate?: boolean
   rotateSpeed?: number
+  projectionMode: 'perspective' | 'orthographic'
 }) {
   const data = useMoleculeData(molecule)
   
@@ -206,13 +208,38 @@ function MoleculeScene({
         enablePan={true} 
         enableZoom={true} 
         enableRotate={true}
-        minDistance={3}
-        maxDistance={30}
+        minDistance={projectionMode === 'orthographic' ? 1 : 3}
+        maxDistance={projectionMode === 'orthographic' ? 50 : 30}
         autoRotate={autoRotate}
         autoRotateSpeed={rotateSpeed}
       />
     </>
   )
+}
+
+// Camera configuration component
+function CameraController({ projectionMode }: { projectionMode: 'perspective' | 'orthographic' }) {
+  const { camera } = useThree()
+  
+  useEffect(() => {
+    if (projectionMode === 'orthographic') {
+      // For orthographic, we need to adjust the camera bounds based on view distance
+      const aspect = window.innerWidth / window.innerHeight
+      const frustumSize = 12 // Controls the visible area size
+      
+      // Update the camera with orthographic parameters
+      const orthoCamera = camera as THREE.OrthographicCamera
+      orthoCamera.left = (-frustumSize * aspect) / 2
+      orthoCamera.right = (frustumSize * aspect) / 2
+      orthoCamera.top = frustumSize / 2
+      orthoCamera.bottom = -frustumSize / 2
+      orthoCamera.near = 0.1
+      orthoCamera.far = 1000
+      orthoCamera.updateProjectionMatrix()
+    }
+  }, [projectionMode, camera])
+  
+  return null
 }
 
 function App() {
@@ -221,6 +248,28 @@ function App() {
   const [molecule, setMolecule] = useState<'C20' | 'C60' | 'C70' | 'C76' | 'C78' | 'C80' | 'C84'>('C20')
   const [highlightedAtom, setHighlightedAtom] = useState<number | null>(null)
   const [projectionMode, setProjectionMode] = useState<'perspective' | 'orthographic'>('perspective')
+  
+  // Camera configuration based on projection mode
+  const cameraConfig = useMemo(() => {
+    if (projectionMode === 'orthographic') {
+      const aspect = window.innerWidth / window.innerHeight || 1
+      const frustumSize = 25 // Larger frustum for orthographic to show full molecule
+      return {
+        position: [0, 0, 12] as [number, number, number],
+        left: (-frustumSize * aspect) / 2,
+        right: (frustumSize * aspect) / 2,
+        top: frustumSize / 2,
+        bottom: -frustumSize / 2,
+        near: 0.1,
+        far: 1000
+      }
+    } else {
+      return {
+        position: [0, 0, 12] as [number, number, number],
+        fov: 60
+      }
+    }
+  }, [projectionMode])
   
   // UI State - matching crystal-viewer-3d
   const [showAtoms, setShowAtoms] = useState(true)
@@ -316,10 +365,13 @@ function App() {
       {/* 3D Canvas - 使用浅色背景使分子更突出 */}
       <div style={{ flex: 1, background: 'linear-gradient(180deg, #f8f9fa 0%, #e9ecef 50%, #dee2e6 100%)', position: 'relative' }}>
         <Canvas 
-          camera={{ position: [0, 0, 12], fov: 60 }}
+          camera={cameraConfig}
           orthographic={projectionMode === 'orthographic'}
           gl={{ antialias: true }}
         >
+          {/* Camera controller for orthographic mode */}
+          <CameraController projectionMode={projectionMode} />
+          
           {/* 添加背景色 */}
           <color attach="background" args={['#F8F9FA']} />
           
@@ -335,6 +387,7 @@ function App() {
             showBonds={showBonds}
             atomScale={atomScale}
             bondScale={bondScale}
+            projectionMode={projectionMode}
           />
         </Canvas>
 
