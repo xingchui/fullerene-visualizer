@@ -341,19 +341,13 @@ function App() {
             />
           </Canvas>
         ) : (
-          <Canvas 
-            camera={{
-              position: [0, 0, 12],
-              left: -15,
-              right: 15,
-              top: 15,
-              bottom: -15,
-              near: 0.1,
-              far: 1000
-            }}
-            orthographic
-            gl={{ antialias: true }}
-          >
+          <Canvas gl={{ antialias: true }}>
+            {/* Orthographic Camera - explicitly created */}
+            <orthographicCamera 
+              position={[0, 0, 12]}
+              args={[-15, 15, 15, -15, 0.1, 1000]}
+            />
+            
             {/* 添加背景色 */}
             <color attach="background" args={['#F8F9FA']} />
             
