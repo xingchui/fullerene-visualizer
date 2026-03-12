@@ -389,12 +389,6 @@ function App() {
             <pointLight position={[10, 10, 10]} intensity={1} color="#ffffff" />
             <pointLight position={[-10, -10, -10]} intensity={0.3} color="#b8c5d6" />
             
-            {/* Debug: Red sphere to verify orthographic rendering */}
-            <mesh position={[0, 0, 0]}>
-              <sphereGeometry args={[2, 32, 32]} />
-              <meshBasicMaterial color="red" />
-            </mesh>
-            
             <MoleculeScene 
               molecule={molecule}
               highlightedAtom={highlightedAtom}
