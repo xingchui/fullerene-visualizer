@@ -1,8 +1,33 @@
-import { Canvas } from '@react-three/fiber'
+import { Canvas, useThree } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import * as THREE from 'three'
 import { c60Data } from './data/c60'
+
+// Component to verify camera type and log debug info
+function CameraDebug() {
+  const { camera } = useThree()
+  
+  useEffect(() => {
+    console.log('Camera type:', camera.type)
+    console.log('Is OrthographicCamera:', camera instanceof THREE.OrthographicCamera)
+    console.log('Is PerspectiveCamera:', camera instanceof THREE.PerspectiveCamera)
+    
+    if (camera instanceof THREE.OrthographicCamera) {
+      console.log('Orthographic camera properties:', {
+        left: camera.left,
+        right: camera.right,
+        top: camera.top,
+        bottom: camera.bottom,
+        near: camera.near,
+        far: camera.far,
+        position: camera.position.toArray()
+      })
+    }
+  }, [camera])
+  
+  return null
+}
 import { c70Data } from './data/c70'
 import { c20Data } from './data/c20'
 import { c76Data } from './data/c76'
@@ -322,6 +347,8 @@ function App() {
             camera={{ position: [0, 0, 12], fov: 60 }}
             gl={{ antialias: true }}
           >
+            <CameraDebug />
+            
             {/* 添加背景色 */}
             <color attach="background" args={['#F8F9FA']} />
             
@@ -341,11 +368,15 @@ function App() {
             />
           </Canvas>
         ) : (
-          <Canvas gl={{ antialias: true }}>
-            {/* Orthographic Camera - explicitly created */}
+          <Canvas 
+            gl={{ antialias: true }}
+          >
+            <CameraDebug />
+            
+            {/* Add orthographic camera */}
             <orthographicCamera 
               position={[0, 0, 12]}
-              args={[-15, 15, 15, -15, 0.1, 1000]}
+              args={[-20, 20, 20, -20, 0.1, 1000]}
             />
             
             {/* 添加背景色 */}
