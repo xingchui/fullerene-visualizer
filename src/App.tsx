@@ -1,6 +1,6 @@
-import { Canvas } from '@react-three/fiber'
+import { Canvas, useThree, useFrame } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import * as THREE from 'three'
 import { c60Data } from './data/c60'
 import { c70Data } from './data/c70'
@@ -91,6 +91,41 @@ export const C70_PRESETS: CameraPreset[] = [
     description: '经典立体展示角度'
   }
 ]
+
+// Orthographic camera controller component
+function OrthographicCameraController() {
+  const { camera, size } = useThree()
+  
+  useEffect(() => {
+    // Check camera type
+    console.log('Camera type:', camera.type)
+    console.log('Is OrthographicCamera:', camera instanceof THREE.OrthographicCamera)
+    
+    if (camera instanceof THREE.OrthographicCamera) {
+      const aspect = size.width / size.height
+      const frustumSize = 15
+      
+      camera.left = -frustumSize * aspect / 2
+      camera.right = frustumSize * aspect / 2
+      camera.top = frustumSize / 2
+      camera.bottom = -frustumSize / 2
+      camera.near = 0.1
+      camera.far = 1000
+      camera.position.set(0, 0, 12)
+      camera.updateProjectionMatrix()
+      
+      console.log('Orthographic camera configured:', {
+        left: camera.left,
+        right: camera.right,
+        top: camera.top,
+        bottom: camera.bottom,
+        aspect: aspect
+      })
+    }
+  }, [camera, size])
+  
+  return null
+}
 
 // Atom component
 function CarbonAtom({ 
@@ -342,15 +377,7 @@ function App() {
           </Canvas>
         ) : (
           <Canvas 
-            camera={{ 
-              position: [0, 0, 12],
-              left: -25,
-              right: 25,
-              top: 25,
-              bottom: -25,
-              near: 0.1,
-              far: 1000
-            }}
+            camera={{ position: [0, 0, 12] }}
             orthographic
             gl={{ antialias: true }}
           >
@@ -361,6 +388,16 @@ function App() {
             <ambientLight intensity={0.7} />
             <pointLight position={[10, 10, 10]} intensity={1} color="#ffffff" />
             <pointLight position={[-10, -10, -10]} intensity={0.3} color="#b8c5d6" />
+            
+            {/* Camera controller for orthographic mode */}
+            <OrthographicCameraController />
+            
+            {/* Debug: Red sphere to verify orthographic rendering */}
+            <mesh position={[0, 0, 0]}>
+              <sphereGeometry args={[2, 32, 32]} />
+              <meshBasicMaterial color="red" />
+            </mesh>
+            
             <MoleculeScene 
               molecule={molecule}
               highlightedAtom={highlightedAtom}
