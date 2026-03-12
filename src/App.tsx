@@ -1,6 +1,6 @@
-import { Canvas, useThree } from '@react-three/fiber'
+import { Canvas } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
-import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import * as THREE from 'three'
 import { c60Data } from './data/c60'
 import { c70Data } from './data/c70'
@@ -208,38 +208,13 @@ function MoleculeScene({
         enablePan={true} 
         enableZoom={true} 
         enableRotate={true}
-        minDistance={projectionMode === 'orthographic' ? 1 : 3}
-        maxDistance={projectionMode === 'orthographic' ? 50 : 30}
+        minDistance={3}
+        maxDistance={30}
         autoRotate={autoRotate}
         autoRotateSpeed={rotateSpeed}
       />
     </>
   )
-}
-
-// Camera configuration component
-function CameraController({ projectionMode }: { projectionMode: 'perspective' | 'orthographic' }) {
-  const { camera } = useThree()
-  
-  useEffect(() => {
-    if (projectionMode === 'orthographic') {
-      // For orthographic, we need to adjust the camera bounds based on view distance
-      const aspect = window.innerWidth / window.innerHeight
-      const frustumSize = 12 // Controls the visible area size
-      
-      // Update the camera with orthographic parameters
-      const orthoCamera = camera as THREE.OrthographicCamera
-      orthoCamera.left = (-frustumSize * aspect) / 2
-      orthoCamera.right = (frustumSize * aspect) / 2
-      orthoCamera.top = frustumSize / 2
-      orthoCamera.bottom = -frustumSize / 2
-      orthoCamera.near = 0.1
-      orthoCamera.far = 1000
-      orthoCamera.updateProjectionMatrix()
-    }
-  }, [projectionMode, camera])
-  
-  return null
 }
 
 function App() {
@@ -248,28 +223,6 @@ function App() {
   const [molecule, setMolecule] = useState<'C20' | 'C60' | 'C70' | 'C76' | 'C78' | 'C80' | 'C84'>('C20')
   const [highlightedAtom, setHighlightedAtom] = useState<number | null>(null)
   const [projectionMode, setProjectionMode] = useState<'perspective' | 'orthographic'>('perspective')
-  
-  // Camera configuration based on projection mode
-  const cameraConfig = useMemo(() => {
-    if (projectionMode === 'orthographic') {
-      const aspect = window.innerWidth / window.innerHeight || 1
-      const frustumSize = 25 // Larger frustum for orthographic to show full molecule
-      return {
-        position: [0, 0, 12] as [number, number, number],
-        left: (-frustumSize * aspect) / 2,
-        right: (frustumSize * aspect) / 2,
-        top: frustumSize / 2,
-        bottom: -frustumSize / 2,
-        near: 0.1,
-        far: 1000
-      }
-    } else {
-      return {
-        position: [0, 0, 12] as [number, number, number],
-        fov: 60
-      }
-    }
-  }, [projectionMode])
   
   // UI State - matching crystal-viewer-3d
   const [showAtoms, setShowAtoms] = useState(true)
@@ -364,32 +317,62 @@ function App() {
 
       {/* 3D Canvas - 使用浅色背景使分子更突出 */}
       <div style={{ flex: 1, background: 'linear-gradient(180deg, #f8f9fa 0%, #e9ecef 50%, #dee2e6 100%)', position: 'relative' }}>
-        <Canvas 
-          camera={cameraConfig}
-          orthographic={projectionMode === 'orthographic'}
-          gl={{ antialias: true }}
-        >
-          {/* Camera controller for orthographic mode */}
-          <CameraController projectionMode={projectionMode} />
-          
-          {/* 添加背景色 */}
-          <color attach="background" args={['#F8F9FA']} />
-          
-          {/* 添加环境光使分子更亮 */}
-          <ambientLight intensity={0.7} />
-          <pointLight position={[10, 10, 10]} intensity={1} color="#ffffff" />
-          <pointLight position={[-10, -10, -10]} intensity={0.3} color="#b8c5d6" />
-          <MoleculeScene 
-            molecule={molecule}
-            highlightedAtom={highlightedAtom}
-            onAtomClick={handleAtomClick}
-            showAtoms={showAtoms}
-            showBonds={showBonds}
-            atomScale={atomScale}
-            bondScale={bondScale}
-            projectionMode={projectionMode}
-          />
-        </Canvas>
+        {projectionMode === 'perspective' ? (
+          <Canvas 
+            camera={{ position: [0, 0, 12], fov: 60 }}
+            gl={{ antialias: true }}
+          >
+            {/* 添加背景色 */}
+            <color attach="background" args={['#F8F9FA']} />
+            
+            {/* 添加环境光使分子更亮 */}
+            <ambientLight intensity={0.7} />
+            <pointLight position={[10, 10, 10]} intensity={1} color="#ffffff" />
+            <pointLight position={[-10, -10, -10]} intensity={0.3} color="#b8c5d6" />
+            <MoleculeScene 
+              molecule={molecule}
+              highlightedAtom={highlightedAtom}
+              onAtomClick={handleAtomClick}
+              showAtoms={showAtoms}
+              showBonds={showBonds}
+              atomScale={atomScale}
+              bondScale={bondScale}
+              projectionMode={projectionMode}
+            />
+          </Canvas>
+        ) : (
+          <Canvas 
+            camera={{ 
+              position: [0, 0, 12],
+              left: -25,
+              right: 25,
+              top: 25,
+              bottom: -25,
+              near: 0.1,
+              far: 1000
+            }}
+            orthographic
+            gl={{ antialias: true }}
+          >
+            {/* 添加背景色 */}
+            <color attach="background" args={['#F8F9FA']} />
+            
+            {/* 添加环境光使分子更亮 */}
+            <ambientLight intensity={0.7} />
+            <pointLight position={[10, 10, 10]} intensity={1} color="#ffffff" />
+            <pointLight position={[-10, -10, -10]} intensity={0.3} color="#b8c5d6" />
+            <MoleculeScene 
+              molecule={molecule}
+              highlightedAtom={highlightedAtom}
+              onAtomClick={handleAtomClick}
+              showAtoms={showAtoms}
+              showBonds={showBonds}
+              atomScale={atomScale}
+              bondScale={bondScale}
+              projectionMode={projectionMode}
+            />
+          </Canvas>
+        )}
 
         {/* Control Panel - Left Side - 浅色主题 */}
         <div style={{
