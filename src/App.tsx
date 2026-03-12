@@ -9,7 +9,7 @@ import { c76Data } from './data/c76'
 import { c78Data } from './data/c78'
 import { c80Data } from './data/c80'
 import { c84Data } from './data/c84'
-import { MoleculeData } from './data/types'
+import { MoleculeData, FULLERENE_FORMULAS } from './data/types'
 
 // Molecule type definition
 export type MoleculeType = 'C20' | 'C60' | 'C70' | 'C76' | 'C78' | 'C80' | 'C84'
@@ -573,6 +573,8 @@ function App() {
           <p style={{ margin: '5px 0' }}>分子: <strong>{molecule}</strong></p>
           <p style={{ margin: '5px 0' }}>原子数: <strong>{data.atomCount}</strong></p>
           <p style={{ margin: '5px 0' }}>化学键: <strong>{data.bondCount}</strong></p>
+          <p style={{ margin: '5px 0' }}>五边形数: <strong>12</strong></p>
+          <p style={{ margin: '5px 0' }}>六边形数: <strong>{(data.atomCount / 2) - 10}</strong></p>
           <p style={{ margin: '5px 0' }}>投影: <strong>{projectionMode === 'perspective' ? '透视' : '正交'}</strong></p>
           {highlightedAtom && (
             <p style={{ color: '#e74c3c', marginTop: '8px' }}>
