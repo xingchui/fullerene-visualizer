@@ -31,8 +31,8 @@
     "@typescript-eslint/eslint-plugin": "^8.57.0",
     "@typescript-eslint/parser": "^8.57.0",
     "@vitejs/plugin-react": "^4.2.0",
-    "electron": "^28.0.0",
-    "electron-builder": "^24.9.0",
+    "electron": "^22.3.27",
+    "electron-builder": "^23.6.0",
     "eslint": "^9.39.4",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",
@@ -63,6 +63,10 @@
           ]
         }
       ]
+    },
+    "electronDownload": {
+      "cache": "./cache",
+      "mirror": "https://github.com/electron/electron/releases/download/v"
     }
   }
 }
