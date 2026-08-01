@@ -5,6 +5,7 @@ node_modules/
 dist/
 dist-electron/
 release/
+release-v*/
 
 # IDE
 .idea/
@@ -31,3 +32,9 @@ coverage/
 # Temporary files
 *.tmp
 temp/
+
+# Opencode internal
+.omo/
+
+# Windows artifact
+nul

@@ -1,6 +1,31 @@
 import { Canvas, useThree } from '@react-three/fiber'
-import { OrbitControls } from '@react-three/drei'
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { OrbitControls, OrthographicCamera } from '@react-three/drei'
+
+// 动态计算正交投影视锥体，确保与透视投影相同的画面比例
+function OrthoFrustumCamera() {
+  const { size } = useThree()
+  const aspect = size.width / size.height
+  const distance = 12 // 与透视相机相同的距离
+  const fov = 60 // 与透视相机相同的视野角度
+
+  // 计算视锥体尺寸，匹配透视投影的画面范围
+  const halfHeight = distance * Math.tan(THREE.MathUtils.degToRad(fov / 2))
+  const halfWidth = halfHeight * aspect
+
+  return (
+    <OrthographicCamera 
+      makeDefault 
+      position={[0, 0, distance]}
+      left={-halfWidth}
+      right={halfWidth}
+      top={halfHeight}
+      bottom={-halfHeight}
+      near={0.1}
+      far={1000}
+    />
+  )
+}
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import * as THREE from 'three'
 import { c60Data } from './data/c60'
 import { c70Data } from './data/c70'
@@ -12,7 +37,13 @@ import { c84Data } from './data/c84'
 import { MoleculeData, FULLERENE_FORMULAS } from './data/types'
 
 // Component to verify camera type and log debug info
+// Debug component - only active in development
 function CameraDebug() {
+  // Only run in development mode
+  if (process.env.NODE_ENV === 'production') {
+    return null
+  }
+  
   const { camera } = useThree()
   
   useEffect(() => {
@@ -39,35 +70,21 @@ function CameraDebug() {
 // Molecule type definition
 export type MoleculeType = 'C20' | 'C60' | 'C70' | 'C76' | 'C78' | 'C80' | 'C84'
 
-// Molecule data map for efficient lookup
+// Molecule data map - initialized once with all data
 const MOLECULE_DATA_MAP: Record<MoleculeType, MoleculeData> = {
-  C20: null as unknown as MoleculeData,
-  C60: null as unknown as MoleculeData,
-  C70: null as unknown as MoleculeData,
-  C76: null as unknown as MoleculeData,
-  C78: null as unknown as MoleculeData,
-  C80: null as unknown as MoleculeData,
-  C84: null as unknown as MoleculeData
+  C20: c20Data,
+  C60: c60Data,
+  C70: c70Data,
+  C76: c76Data,
+  C78: c78Data,
+  C80: c80Data,
+  C84: c84Data
 }
 
-// Initialize the map after all data is loaded
-function initializeMoleculeMap() {
-  MOLECULE_DATA_MAP.C20 = c20Data
-  MOLECULE_DATA_MAP.C60 = c60Data
-  MOLECULE_DATA_MAP.C70 = c70Data
-  MOLECULE_DATA_MAP.C76 = c76Data
-  MOLECULE_DATA_MAP.C78 = c78Data
-  MOLECULE_DATA_MAP.C80 = c80Data
-  MOLECULE_DATA_MAP.C84 = c84Data
-}
-
-// Custom hook for getting molecule data
+// Custom hook for getting molecule data - uses cached data
 function useMoleculeData(molecule: MoleculeType): MoleculeData {
   return MOLECULE_DATA_MAP[molecule]
 }
-
-// Initialize on first use
-initializeMoleculeMap()
 
 // C70 预设视角配置 - 用于富勒烯3D演示
 export interface CameraPreset {
@@ -157,18 +174,27 @@ function Bond({
   color?: string
   radius?: number
 }) {
-  const startVec = new THREE.Vector3(...start)
-  const endVec = new THREE.Vector3(...end)
-  
-  const midpoint = new THREE.Vector3().addVectors(startVec, endVec).multiplyScalar(0.5)
-  const length = startVec.distanceTo(endVec)
-  const direction = new THREE.Vector3().subVectors(endVec, startVec).normalize()
-  
-  const up = new THREE.Vector3(0, 1, 0)
-  const quaternion = new THREE.Quaternion().setFromUnitVectors(up, direction)
+  // Memoize position and rotation calculations
+  const { position, quaternion, length } = useMemo(() => {
+    const startVec = new THREE.Vector3(...start)
+    const endVec = new THREE.Vector3(...end)
+    
+    const midpoint = new THREE.Vector3().addVectors(startVec, endVec).multiplyScalar(0.5)
+    const len = startVec.distanceTo(endVec)
+    const dir = new THREE.Vector3().subVectors(endVec, startVec).normalize()
+    
+    const up = new THREE.Vector3(0, 1, 0)
+    const quat = new THREE.Quaternion().setFromUnitVectors(up, dir)
+    
+    return { 
+      position: midpoint.toArray(), 
+      quaternion: quat, 
+      length: len 
+    }
+  }, [start, end, radius])
   
   return (
-    <mesh position={midpoint.toArray()} quaternion={quaternion}>
+    <mesh position={position} quaternion={quaternion}>
       <cylinderGeometry args={[radius, radius, length, 8]} />
       <meshStandardMaterial color={color} roughness={0.5} metalness={0.1} />
     </mesh>
@@ -309,7 +335,7 @@ function App() {
         borderBottom: '1px solid #dfe6e9',
         boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
       }}>
-        <h1 style={{ fontSize: '18px', margin: 0, fontWeight: 600 }}>Crystal Viewer 3D - C20/C60/C70/C76/C78/C80/C84 富勒烯</h1>
+        <h1 style={{ fontSize: '18px', margin: 0, fontWeight: 600 }}>Fullerene Molecular Visualization</h1>
         
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
           {/* Molecule Selector */}
@@ -368,17 +394,8 @@ function App() {
         ) : (
           <Canvas 
             gl={{ antialias: true }}
-            orthographic
-            camera={{
-              position: [0, 0, 12],
-              left: -20,
-              right: 20,
-              top: 20,
-              bottom: -20,
-              near: 0.1,
-              far: 1000
-            }}
           >
+            <OrthoFrustumCamera />
             <CameraDebug />
             
             {/* 添加背景色 */}

@@ -1,178 +1,64 @@
 # AGENTS.md - Developer Guide for AI Agents
 
-This file provides guidelines and instructions for AI agents working on this codebase.
-
 ## Project Overview
 
-- **Name**: Fullerene Visualizer (富勒烯3D可视化工具)
+- **Name**: Fullerene Molecular Visualization (富勒烯3D可视化工具)
 - **Type**: Electron + React + Three.js Desktop Application
 - **Purpose**: 3D visualization of fullerene carbon cage molecules (C20, C60, C70, C76, C78, C80, C84)
-- **Tech Stack**: React 18, Three.js, React Three Fiber, Electron, TypeScript, Vite, Vitest
+- **Tech Stack**: React 18, Three.js, React Three Fiber (`@react-three/drei` + `@react-three/fiber`), Electron 22, TypeScript, Vite, Vitest
+- **GitHub**: `xingchui/fullerene-visualizer`
 
 ---
 
-## Build & Development Commands
+## Critical Gotchas (agents WILL get these wrong)
+
+### 1. Never add `"type": "module"` to package.json
+Removing it was the fix for the Electron `ERR_REQUIRE_ESM` crash. Electron 22 requires a CommonJS main process. `vite.config.ts` already forces `format: 'cjs'` for `electron/main.ts` and `electron/preload.ts` builds — do not "fix" or remove that either.
+
+### 2. Orthographic projection: use `OrthoFrustumCamera`, NOT the Canvas `orthographic` prop
+The `<Canvas orthographic camera={{...}}>` pattern does NOT create a working orthographic camera — the molecule renders with perspective distortion. The working pattern (in `src/App.tsx`) is a drei `<OrthographicCamera makeDefault />` whose frustum is computed from viewport aspect ratio:
+
+```tsx
+const halfHeight = distance * Math.tan(THREE.MathUtils.degToRad(fov / 2))
+const halfWidth = halfHeight * aspect  // aspect = size.width / size.height
+```
+
+A fixed square frustum (`left/right/top/bottom = ±20`) makes the molecule look flattened/squashed — the frustum must track the aspect ratio.
+
+### 3. The packaged exe is NOT standalone
+`npm run electron:build` outputs to `release/win-unpacked/`. The exe inside depends on sibling DLLs (`ffmpeg.dll`, etc.). Copying just the `.exe` to another machine fails with "找不到 ffmpeg.dll". Distribute the **entire `win-unpacked/` folder as a zip** (see release flow below).
+
+### 4. `electron:dev` is just `vite`
+The vite-plugin-electron config auto-starts Electron on `vite serve`. Do not change it back to `vite build && electron .` — that was the old slow flow.
+
+---
+
+## Commands
 
 ### Development
 ```bash
-# Start development server
-npm run dev
-
-# Run Electron in dev mode
-npm run electron:dev
+npm run dev            # Vite dev server (browser only)
+npm run electron:dev   # Vite + Electron auto-start (use this to test desktop app)
 ```
 
-### Building
+### Build / Verify
 ```bash
-# Build for production (web)
-npm run build
-
-# Build Electron app
-npm run electron:build
-
-# Output: release/ directory
+npm run build          # tsc && vite build  (typecheck FIRST — do not skip)
+npm run electron:build # vite build && electron-builder → release/win-unpacked/
+npx tsc --noEmit       # fast typecheck without building
 ```
 
-### Testing
+### Test
 ```bash
-# Run tests in watch mode
-npm test
-
-# Run tests once
-npm run test:run
-
-# Run a single test file
-npm test -- src/test/fullerene.test.ts
-
-# Run a specific test
-npm test -- src/test/fullerene.test.ts -t "C60 Molecular Data"
+npm test               # vitest watch
+npm run test:run       # vitest run (single pass)
+npm test -- src/test/fullerene.test.ts        # single file
+npm test -- src/test/fullerene.test.ts -t "C60"  # specific test
 ```
 
-### Linting
+### Lint
 ```bash
-# Run ESLint
 npx eslint src/
-
-# Fix linting issues
-npx eslint src/ --fix
-```
-
----
-
-## Code Style Guidelines
-
-### TypeScript
-
-- **Use strict typing**: Avoid `any`, use proper types
-- **Use interfaces over types** for object shapes
-- **Use `as const`** for constant objects
-- **Type imports**: `import { TypeName } from 'module'`
-
-```typescript
-// Good
-interface Atom {
-  id: number
-  position: [number, number, number]
-  element: string
-}
-
-export const FULLERENE_FORMULAS = {
-  vertices: (n: number) => n,
-  edges: (n: number) => Math.floor(n * 1.5)
-} as const
-
-// Avoid
-const atom: any = { ... }
-```
-
-### React Components
-
-- **Use functional components** with TypeScript
-- **Use explicit prop types** with interfaces
-- **Hooks first**: Prefer hooks over class components
-
-```typescript
-// Good
-interface CarbonAtomProps {
-  position: [number, number, number]
-  radius?: number
-  color?: string
-}
-
-function CarbonAtom({ position, radius = 0.28 }: CarbonAtomProps) {
-  return (
-    <mesh position={position}>
-      <sphereGeometry args={[radius, 32, 32]} />
-    </mesh>
-  )
-}
-```
-
-### Imports
-
-**Order:**
-1. React/Framework imports
-2. Third-party libraries
-3. Internal imports (relative paths)
-
-```typescript
-// 1. React/Framework
-import { useState, useEffect } from 'react'
-import { Canvas } from '@react-three/fiber'
-
-// 2. Third-party
-import * as THREE from 'three'
-
-// 3. Internal
-import { c60Data } from './data/c60'
-import { MoleculeData } from './data/types'
-```
-
-### Naming Conventions
-
-- **Components**: PascalCase (`MoleculeScene`, `CarbonAtom`)
-- **Functions/variables**: camelCase (`generateBonds`, `atomCount`)
-- **Constants**: UPPER_SNAKE_CASE or camelCase with `k` prefix
-- **Types/Interfaces**: PascalCase (`Atom`, `Bond`, `MoleculeData`)
-- **Files**: kebab-case (`fullerene.test.ts`, `types.ts`)
-
-### Error Handling
-
-- **Use try-catch** for async operations
-- **Return error results** instead of throwing for expected errors
-- **Type error states** explicitly
-
-```typescript
-// Good
-function validateFullereneTopology(...): { valid: boolean; errors: string[] } {
-  const errors: string[] = []
-  // ... validation logic
-  return { valid: errors.length === 0, errors }
-}
-
-// Avoid empty catch blocks
-try {
-  // ... code
-} catch (e) {
-  console.error('Error:', e) // Always log or handle
-}
-```
-
-### Three.js / React Three Fiber
-
-- **Use `useMemo`** for expensive calculations (geometry creation)
-- **Use `useRef`** for Three.js object references
-- **Dispose geometries/materials** when unmounting
-
-```typescript
-function MoleculeScene() {
-  const meshRef = useRef<THREE.Mesh>(null)
-  
-  // Use useMemo for geometries that don't change
-  const geometry = useMemo(() => new THREE.SphereGeometry(1, 32, 32), [])
-  
-  return <mesh ref={meshRef} geometry={geometry} />
-}
 ```
 
 ---
@@ -181,106 +67,45 @@ function MoleculeScene() {
 
 ```
 src/
-├── App.tsx              # Main React application
+├── App.tsx              # Main app: App → MoleculeScene → CarbonAtom/Bond, OrthoFrustumCamera
 ├── main.tsx             # React entry point
 ├── data/
-│   ├── types.ts        # Shared TypeScript interfaces
-│   ├── fullerenes.ts   # Shared utilities
-│   └── c20.ts - c84.ts # Fullerene coordinate data
+│   ├── types.ts        # MoleculeData, Atom, Bond interfaces
+│   ├── fullerenes.ts   # Shared utilities (bond generation, topology)
+│   └── c20.ts - c84.ts # Coordinate data, exported as cXXData: MoleculeData
 ├── test/
-│   ├── fullerene.test.ts  # Topology validation tests
-│   ├── molecule.test.ts   # Molecule rendering tests
-│   └── setup.ts        # Vitest setup
-└── tools/
-    └── *.ts            # Utility scripts
-
+│   ├── fullerene.test.ts  # Topology validation (Euler V-E+F=2)
+│   ├── molecule.test.ts   # Rendering tests
+│   └── setup.ts
 electron/
-└── main.ts             # Electron main process
+├── main.ts             # Electron main process (CJS output)
+└── preload.ts          # contextBridge API (electronAPI: saveScreenshot, toggleFullscreen, platform)
+vite.config.ts          # electron plugin: main+preload → cjs; manualChunks: three-vendor, react-vendor
 ```
 
----
+## Architecture Notes
 
-## Testing Guidelines
+- **Molecule data map**: `MOLECULE_DATA_MAP` in `App.tsx` is initialized directly at module scope from `c20Data`...`c84Data` imports. Use `useMoleculeData(molecule)` to look it up. Don't reintroduce null-cast lazy init.
+- **Debug component**: `CameraDebug` logs camera type in the 3D scene but is guarded to no-op in production (`process.env.NODE_ENV === 'production'`). Keep that guard.
+- **Performance**: `Bond` component memoizes position/quaternion/length computation with `useMemo` (deps: `start`, `end`, `radius`). Keep geometry creation out of the render path.
+- **Electron security baseline** (preserve): `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`, CSP headers, blocked external navigation/new windows. Preload uses `contextBridge` only.
 
-### Test File Naming
-- Use `.test.ts` or `.spec.ts` suffix
-- Place in `src/test/` directory
+## Release Flow (GitHub Releases)
 
-### Test Patterns
-```typescript
-import { describe, it, expect } from 'vitest'
-import { c60Data } from '../data/c60'
+The portable distributable is the zipped `win-unpacked` folder:
 
-describe('Fullerene Data', () => {
-  it('should have correct number of atoms', () => {
-    expect(c60Data.atoms).toHaveLength(60)
-  })
-})
-```
-
-### Running Tests
 ```bash
-# All tests
-npm test
-
-# Single file
-npm test -- src/test/fullerene.test.ts
-
-# Specific test name
-npm test -t "C60"
-
-# Coverage
-npm test -- --coverage
+npm run electron:build
+powershell -Command "Compress-Archive -Path 'release\win-unpacked\*' -DestinationPath 'release\Fullerene Molecular Visualization V<VER>.zip' -Force"
+gh release create v<VER> "release\Fullerene Molecular Visualization V<VER>.zip" --title "V<VER>" --notes "解压后双击 Fullerene Molecular Visualization.exe"
 ```
 
----
+- Repo: `xingchui/fullerene-visualizer`
+- Electron 22 is pinned for Windows 7/8/8.1 compatibility — do not bump without checking.
 
-## Common Patterns
+## Workflow Conventions
 
-### Conditional Rendering
-```typescript
-{projectionMode === 'perspective' ? (
-  <Canvas camera={{ position: [0, 0, 12], fov: 60 }}>
-    {/* ... */}
-  </Canvas>
-) : (
-  <Canvas orthographic camera={{ ... }}>
-    {/* ... */}
-  </Canvas>
-)}
-```
-
-### Data Export Pattern
-```typescript
-// In data files (c60.ts, c70.ts, etc.)
-export const c60Data: MoleculeData = createMoleculeData(
-  'C60',
-  'C60',
-  c60Vertices,
-  c60Bonds
-)
-```
-
----
-
-## Git Workflow
-
-1. Create feature branch: `git checkout -b feature/your-feature`
-2. Make changes and commit
-3. Push to remote: `git push origin feature/your-feature`
-4. Create Pull Request
-
-### Commit Messages
-- Use clear, descriptive messages
-- Prefix with type: `feat:`, `fix:`, `chore:`, `docs:`, `test:`
-
----
-
-## Notes for AI Agents
-
-- **Read before editing**: Always read existing files before modifying
-- **Check types**: Use TypeScript, avoid `any`
-- **Test changes**: Run `npm test` before committing
-- **Build verification**: Run `npm run build` to verify compilation
-- **Keep changes focused**: One feature/fix per commit
-- **Check ESLint**: Run `npx eslint src/` before pushing
+- Verify with `npx tsc --noEmit` (or `npm run build`) + `npm run test:run` before claiming completion.
+- Vitest prints Vite CJS-deprecation warnings on startup — these are noise, not failures.
+- Tests live in `src/test/` with `.test.ts` suffix.
+- Commit style: `feat:`, `fix:`, `chore:`, `docs:`, `test:` prefixes.

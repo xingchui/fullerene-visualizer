@@ -1,16 +1,15 @@
 {
-  "name": "c60-c70-visualizer",
+  "name": "fullerene-molecular-visualization",
   "version": "1.0.0",
-  "description": "C60/C70 3D Molecular Visualization",
+  "description": "Fullerene Molecular 3D Visualization",
   "main": "dist-electron/main.js",
-  "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "test": "vitest",
     "test:run": "vitest run",
-    "electron:dev": "vite build && electron .",
+    "electron:dev": "vite",
     "electron:build": "vite build && electron-builder"
   },
   "dependencies": {
@@ -45,8 +44,8 @@
     "vitest": "^4.0.18"
   },
   "build": {
-    "appId": "com.c60c70.visualizer",
-    "productName": "C60C70 Visualizer",
+    "appId": "com.fullerene.molecular.visualization",
+    "productName": "Fullerene Molecular Visualization",
     "directories": {
       "output": "release"
     },
